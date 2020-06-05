@@ -19,7 +19,7 @@ class GenerateDiagramCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'generate:erd {filename?} {--format=png}';
+    protected $signature = 'generate:erd {filename?} {--format=png} {--target=}';
 
     /**
      * The console command description.
@@ -70,7 +70,31 @@ class GenerateDiagramCommand extends Command
             );
         });
 
-        $graph = $this->graphBuilder->buildGraph($models);
+        $target = $this->option('target');
+
+        if ($target) {
+
+            $models = $models->filter(function ($model) use($target) {
+
+                if ($model->getModel() === $target) {
+                    return true;
+                }
+
+                $relations = $model->getRelations();
+
+                if ($relations->isEmpty()) {
+                    return false;
+                }
+
+                $keyed = $relations->keyBy(function ($relation) {
+                    return $relation->getModel();
+                });
+
+                return $keyed->has($target);
+            });
+        }
+
+        $graph = $this->graphBuilder->buildGraph($models, $target);
 
         if ($this->option('format') === self::FORMAT_TEXT) {
             $this->info($graph->__toString());
