@@ -15,9 +15,10 @@ class GraphBuilder
 
     /**
      * @param $models
+     * @param string $target
      * @return Graph
      */
-    public function buildGraph(Collection $models) : Graph
+    public function buildGraph(Collection $models, string $target = null) : Graph
     {
         $this->graph = new Graph();
 
@@ -25,7 +26,7 @@ class GraphBuilder
             $this->graph->{"set${key}"}($value);
         }
 
-        $this->addModelsToGraph($models);
+        $this->addModelsToGraph($models, $target);
 
         return $this->graph;
     }
@@ -52,11 +53,14 @@ class GraphBuilder
         return [];
     }
 
-    protected function getModelLabel(EloquentModel $model, string $label)
+    protected function getModelLabel(EloquentModel $model, string $label, string $target = null)
     {
+        $headerBackgroundColor = $target === get_class($model->getModel()) 
+            ? '#CE3E56' 
+            : config('erd-generator.table.header_background_color');
 
         $table = '<<table width="100%" height="100%" border="0" margin="0" cellborder="1" cellspacing="0" cellpadding="10">' . PHP_EOL;
-        $table .= '<tr width="100%"><td width="100%" bgcolor="'.config('erd-generator.table.header_background_color').'"><font color="'.config('erd-generator.table.header_font_color').'">' . $label . '</font></td></tr>' . PHP_EOL;
+        $table .= '<tr width="100%"><td width="100%" bgcolor="'.$headerBackgroundColor.'"><font color="'.config('erd-generator.table.header_font_color').'">' . $label . '</font></td></tr>' . PHP_EOL;
 
         if (config('erd-generator.use_db_schema')) {
             $columns = $this->getTableColumnsFromModel($model);
@@ -74,12 +78,12 @@ class GraphBuilder
         return $table;
     }
 
-    protected function addModelsToGraph(Collection $models)
+    protected function addModelsToGraph(Collection $models, string $target = null)
     {
         // Add models to graph
-        $models->map(function (Model $model) {
+        $models->map(function (Model $model) use($target) {
             $eloquentModel = app($model->getModel());
-            $this->addNodeToGraph($eloquentModel, $model->getNodeName(), $model->getLabel());
+            $this->addNodeToGraph($eloquentModel, $model->getNodeName(), $model->getLabel(), $target);
         });
 
         // Create relations
@@ -88,10 +92,10 @@ class GraphBuilder
         });
     }
 
-    protected function addNodeToGraph(EloquentModel $eloquentModel, string $nodeName, string $label)
+    protected function addNodeToGraph(EloquentModel $eloquentModel, string $nodeName, string $label, string $target = null)
     {
         $node = Node::create($nodeName);
-        $node->setLabel($this->getModelLabel($eloquentModel, $label));
+        $node->setLabel($this->getModelLabel($eloquentModel, $label, $target));
 
         foreach (config('erd-generator.node') as $key => $value) {
             $node->{"set${key}"}($value);
